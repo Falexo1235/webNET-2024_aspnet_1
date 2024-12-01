@@ -23,14 +23,12 @@ namespace BlogApi.Controllers
         // POST: /api/post/{postId}/like
         [HttpPost("{postId}/like")]
         [Authorize]
-        public async Task<IActionResult> LikePost(int postId)
+        public async Task<IActionResult> AddLike(Guid postId)
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+            var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
 
-            // Проверка, если пользователь уже поставил лайк
-            var existingLike = await _context.Likes
-                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
-
+            // Проверка: пользователь уже лайкнул пост?
+            var existingLike = await _context.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
             if (existingLike != null)
                 return BadRequest("You have already liked this post.");
 
@@ -46,24 +44,23 @@ namespace BlogApi.Controllers
             return Ok(new { Message = "Post liked successfully." });
         }
 
+
         // DELETE: /api/post/{postId}/like
         [HttpDelete("{postId}/like")]
         [Authorize]
-        public async Task<IActionResult> UnlikePost(int postId)
+        public async Task<IActionResult> RemoveLike(Guid postId)
         {
-            var userId = int.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+            var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
 
-            // Поиск лайка
-            var like = await _context.Likes
-                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
-
+            // Найти существующий лайк
+            var like = await _context.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
             if (like == null)
                 return NotFound("Like not found.");
 
             _context.Likes.Remove(like);
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Post unliked successfully." });
+            return Ok(new { Message = "Like removed successfully." });
         }
     }
 }

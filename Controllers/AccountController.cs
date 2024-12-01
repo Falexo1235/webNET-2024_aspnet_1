@@ -40,6 +40,9 @@ namespace BlogApi.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
             var user = new User
             {
                 Id = Guid.NewGuid(),  // Генерация нового GUID
@@ -47,8 +50,9 @@ namespace BlogApi.Controllers
                 FullName = dto.FullName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 Gender = dto.Gender,
-                DateOfBirth = dto.DateOfBirth,
-                Phone = dto.Phone
+                BirthDate = dto.BirthDate,
+                Phone = dto.Phone,
+                CreationTime = DateTime.UtcNow
             };
 
             _context.Users.Add(user);
@@ -104,12 +108,13 @@ namespace BlogApi.Controllers
 
             var userProfile = new
             {
-                user.Id,
-                user.Email,
                 user.FullName,
+                user.BirthDate,
+                user.Gender,
+                user.Email,
                 user.Phone,
-                user.DateOfBirth,
-                user.Gender
+                user.Id,
+                user.CreationTime
             };
 
             return Ok(userProfile);
@@ -120,6 +125,9 @@ namespace BlogApi.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized("Invalid token.");
@@ -129,16 +137,16 @@ namespace BlogApi.Controllers
                 return NotFound("User not found.");
 
             // Убедитесь, что дата рождения передается в UTC
-            if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value.Kind == DateTimeKind.Unspecified)
+            if (dto.BirthDate.HasValue && dto.BirthDate.Value.Kind == DateTimeKind.Unspecified)
             {
                 // Если дата имеет 'Unspecified' тип, установите UTC
-                dto.DateOfBirth = DateTime.SpecifyKind(dto.DateOfBirth.Value, DateTimeKind.Utc);
+                dto.BirthDate = DateTime.SpecifyKind(dto.BirthDate.Value, DateTimeKind.Utc);
             }
 
             // Обновление данных пользователя
             user.FullName = dto.FullName ?? user.FullName;
             user.Phone = dto.Phone ?? user.Phone;
-            user.DateOfBirth = dto.DateOfBirth ?? user.DateOfBirth;
+            user.BirthDate = dto.BirthDate ?? user.BirthDate;
             user.Gender = dto.Gender ?? user.Gender;
 
             _context.Users.Update(user);

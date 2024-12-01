@@ -23,101 +23,63 @@ namespace BlogApi.Controllers
         [HttpGet("{id}/tree")]
 public async Task<IActionResult> GetCommentTree(Guid id)
 {
-    // Получаем корневые комментарии, где ParentCommentId == null для поста с id
-    var comments = await _context.Comments
-        .Where(c => c.PostId == id && c.ParentId == null) // Это корневые комментарии
-        .Include(c => c.Author)  // Загружаем автора комментария
+    // Получаем комментарий-родитель
+    var parentComment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
+
+    if (parentComment == null)
+        return NotFound("Comment not found.");
+
+    var commentTree = new List<object>();
+    await BuildCommentTree(parentComment, commentTree);
+
+    return Ok(commentTree);
+}
+
+// Рекурсивный метод построения дерева комментариев
+private async Task BuildCommentTree(Comment comment, List<object> result)
+{
+    // Загружаем автора комментария
+    var author = await _context.Users.FindAsync(comment.AuthorId);
+
+    // Добавляем комментарий в результат
+    result.Add(new
+    {
+        comment.Content,
+        comment.ModifiedDate,
+        comment.DeleteDate,
+        comment.AuthorId,
+        Author = author?.FullName ?? "Unknown",
+        SubComments = await CountSubComments(comment.Id), // Рекурсивный подсчёт вложенных комментариев
+        comment.Id,
+        comment.CreateTime
+    });
+
+    // Получаем подкомментарии
+    var subComments = await _context.Comments
+        .Where(c => c.ParentId == comment.Id)
+        .OrderByDescending(c => c.CreateTime)
         .ToListAsync();
 
-    // Для каждого комментария подгружаем подкомментарии и их количество
-    var result = new List<object>();
-
-    foreach (var comment in comments)
+    foreach (var subComment in subComments)
     {
-        // Загружаем подкомментарии
-        var subComments = await _context.Comments
-            .Where(c => c.ParentId == comment.Id)  // Проверяем, что ParentCommentId равен Id текущего комментария
-            .ToListAsync();
-
-        // Добавляем количество подкомментариев
-        comment.SubComments = subComments.Count;
-
-        // Убираем ParentCommentId, так как его не нужно отображать
-        comment.ParentId = null;
-        var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);  // Найдем пользователя по AuthorId для комментариев
-        comment.Author = commentAuthor?.FullName ?? "Unknown";  // Присваиваем имя
-
-        // Преобразуем в нужную форму (для ответа)
-        var commentDto = new
-        {
-            comment.Content,
-            comment.ModifiedDate,
-            comment.DeleteDate,
-            comment.AuthorId,
-            comment.Author, // Имя автора
-            comment.SubComments,
-            comment.Id,
-            comment.CreateTime
-        };
-
-        result.Add(commentDto);
-
-        // Рекурсивно добавляем подкомментарии в дерево
-        if (subComments.Any())
-        {
-            // Вложенные комментарии
-            var subCommentDtos = await GetSubComments(subComments);
-            result.AddRange(subCommentDtos);
-        }
+        await BuildCommentTree(subComment, result);
     }
-
-    return Ok(result);
 }
-
-// Метод для получения подкомментариев с вложенными подкомментариями
-private async Task<IEnumerable<object>> GetSubComments(List<Comment> comments)
+private async Task<int> CountSubComments(Guid commentId)
 {
-    var result = new List<object>();
+    var subComments = await _context.Comments
+        .Where(c => c.ParentId == commentId)
+        .ToListAsync();
 
-    foreach (var comment in comments)
+    int count = subComments.Count;
+
+    foreach (var subComment in subComments)
     {
-        var subComments = await _context.Comments
-            .Where(c => c.ParentId == comment.Id)
-            .ToListAsync();
-
-        // Считаем количество подкомментариев
-        comment.SubComments = subComments.Count;
-        
-        // Убираем ParentCommentId, так как его не нужно отображать
-        comment.ParentId = null;
-        var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);  // Найдем пользователя по AuthorId для комментариев
-        comment.Author = commentAuthor?.FullName ?? "Unknown";  // Присваиваем имя
-
-        var commentDto = new
-        {
-            comment.Content,
-            comment.ModifiedDate,
-            comment.DeleteDate,
-            comment.AuthorId,
-            comment.Author,
-            comment.SubComments,
-            comment.Id,
-            comment.CreateTime
-        };
-
-        result.Add(commentDto);
-
-        if (subComments.Any())
-        {
-            // Добавляем вложенные комментарии
-            var subCommentDtos = await GetSubComments(subComments);
-            result.AddRange(subCommentDtos);
-        }
+        count += await CountSubComments(subComment.Id); // Рекурсивно подсчитываем вложенные комментарии
     }
 
-    return result;
+    return count;
 }
-
 
         
 

@@ -61,34 +61,50 @@ namespace BlogApi.Controllers
 
         // GET: api/post/{id} - Получение поста с массивом комментариев
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetPostById(Guid id)
-        {
-            var post = await _context.Posts
-                .Include(p => p.Comments)  // Загружаем комментарии
-                .FirstOrDefaultAsync(p => p.Id == id);
-            var postAuthor = await _context.Users.FindAsync(post.AuthorId);  // Найдем пользователя по AuthorId для комментариев
-                post.Author = postAuthor?.FullName ?? "Unknown";  // Присваиваем имя
+public async Task<IActionResult> GetPostById(Guid id)
+{
+    var post = await _context.Posts
+        .Include(p => p.Comments)
+        .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (post == null)
-                return NotFound("Post not found.");
+    if (post == null)
+        return NotFound("Post not found.");
 
-            // Для каждого комментария считаем количество подкомментариев
-            foreach (var comment in post.Comments)
-            {
-                var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);  // Найдем пользователя по AuthorId для комментариев
-                 comment.Author = commentAuthor?.FullName ?? "Unknown";  // Присваиваем имя
+    var postAuthor = await _context.Users.FindAsync(post.AuthorId);
+    post.Author = postAuthor?.FullName ?? "Unknown";
 
-                // Подсчитываем количество подкомментариев для каждого комментария
-                comment.SubComments = await _context.Comments
-                    .Where(c => c.ParentId == comment.Id)  // Проверяем, что ParentId равен Id текущего комментария
-                    .CountAsync();  // Подсчитываем количество подкомментариев
+    // Фильтруем только основные комментарии
+    var mainComments = post.Comments.Where(c => c.ParentId == null).ToList();
 
-                // Убираем ParentId, так как его не нужно отображать
-                comment.ParentId = null;
-            }
+    foreach (var comment in mainComments)
+    {
+        var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);
+        comment.Author = commentAuthor?.FullName ?? "Unknown";
 
-            return Ok(post);
-        }
+        // Рекурсивный подсчёт подкомментариев
+        comment.SubComments = await CountSubCommentsRecursively(comment.Id);
+    }
+
+    post.Comments = mainComments; // Перезаписываем только основные комментарии
+    return Ok(post);
+}
+
+// Рекурсивный метод подсчёта подкомментариев
+private async Task<int> CountSubCommentsRecursively(Guid parentId)
+{
+    var directSubComments = await _context.Comments
+        .Where(c => c.ParentId == parentId)
+        .ToListAsync();
+
+    var totalCount = directSubComments.Count;
+
+    foreach (var subComment in directSubComments)
+    {
+        totalCount += await CountSubCommentsRecursively(subComment.Id);
+    }
+
+    return totalCount;
+}
 
 [HttpPost("{id}/comment")]
         [Authorize]
