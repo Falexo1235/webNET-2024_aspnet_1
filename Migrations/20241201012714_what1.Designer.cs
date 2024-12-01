@@ -3,6 +3,7 @@ using System;
 using BlogApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BlogApi.Migrations
 {
     [DbContext(typeof(BlogDbContext))]
-    partial class BlogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241201012714_what1")]
+    partial class what1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,9 +31,6 @@ namespace BlogApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("Author")
-                        .HasColumnType("text");
 
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uuid");
@@ -48,16 +48,17 @@ namespace BlogApi.Migrations
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("ParentId")
+                    b.Property<Guid?>("ParentCommentId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("PostId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("SubComments")
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("ParentCommentId");
 
                     b.HasIndex("PostId");
 
@@ -131,10 +132,6 @@ namespace BlogApi.Migrations
                     b.Property<Guid?>("AddressId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Author")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uuid");
 
@@ -156,6 +153,8 @@ namespace BlogApi.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
 
                     b.ToTable("Posts");
                 });
@@ -239,11 +238,27 @@ namespace BlogApi.Migrations
 
             modelBuilder.Entity("BlogApi.Models.Comment", b =>
                 {
-                    b.HasOne("BlogApi.Models.Post", null)
+                    b.HasOne("BlogApi.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BlogApi.Models.Comment", "ParentComment")
+                        .WithMany("SubComments")
+                        .HasForeignKey("ParentCommentId");
+
+                    b.HasOne("BlogApi.Models.Post", "Post")
                         .WithMany("Comments")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Author");
+
+                    b.Navigation("ParentComment");
+
+                    b.Navigation("Post");
                 });
 
             modelBuilder.Entity("BlogApi.Models.Group", b =>
@@ -276,11 +291,27 @@ namespace BlogApi.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BlogApi.Models.Post", b =>
+                {
+                    b.HasOne("BlogApi.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
             modelBuilder.Entity("BlogApi.Models.Tag", b =>
                 {
                     b.HasOne("BlogApi.Models.Post", null)
                         .WithMany("Tags")
                         .HasForeignKey("PostId");
+                });
+
+            modelBuilder.Entity("BlogApi.Models.Comment", b =>
+                {
+                    b.Navigation("SubComments");
                 });
 
             modelBuilder.Entity("BlogApi.Models.Post", b =>

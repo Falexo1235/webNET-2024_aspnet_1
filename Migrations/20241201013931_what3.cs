@@ -5,7 +5,7 @@
 namespace BlogApi.Migrations
 {
     /// <inheritdoc />
-    public partial class MakePhoneNullable : Migration
+    public partial class what3 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

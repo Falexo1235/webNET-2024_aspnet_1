@@ -1,4 +1,4 @@
-namespace BlogApi.Models
+namespace BlogApi.DTOs
 {
     public class LoginDto
     {

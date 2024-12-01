@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Gp7YBOQDgM0=",
+  "dgSpecHash": "zmdcZjOhlRk=",
   "success": true,
-  "projectFilePath": "D:\\BlogApi\\BlogApi.csproj",
+  "projectFilePath": "D:\\webNET-2024_aspnet_1\\BlogApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\user\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\bouncycastle.cryptography\\2.4.0\\bouncycastle.cryptography.2.4.0.nupkg.sha512",

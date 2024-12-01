@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\BlogApi\\BlogApi.csproj": {}
+    "D:\\webNET-2024_aspnet_1\\BlogApi.csproj": {}
   },
   "projects": {
-    "D:\\BlogApi\\BlogApi.csproj": {
+    "D:\\webNET-2024_aspnet_1\\BlogApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BlogApi\\BlogApi.csproj",
+        "projectUniqueName": "D:\\webNET-2024_aspnet_1\\BlogApi.csproj",
         "projectName": "BlogApi",
-        "projectPath": "D:\\BlogApi\\BlogApi.csproj",
+        "projectPath": "D:\\webNET-2024_aspnet_1\\BlogApi.csproj",
         "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "D:\\BlogApi\\obj\\",
+        "outputPath": "D:\\webNET-2024_aspnet_1\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
