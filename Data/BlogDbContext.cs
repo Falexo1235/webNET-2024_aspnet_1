@@ -36,6 +36,8 @@ namespace BlogApi.Data
             modelBuilder.Entity<User>()
                 .Property(u => u.Id)
                 .HasDefaultValueSql("gen_random_uuid()");
+             modelBuilder.Entity<CommunityUser>()
+                .HasKey(cu => new { cu.UserId, cu.CommunityId });
         }
 
     }
