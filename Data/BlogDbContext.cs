@@ -16,6 +16,9 @@ namespace BlogApi.Data
         public DbSet<Group> Groups { get; set; }
         public DbSet<Tag> Tags { get; set; }
         public DbSet<Like> Likes { get; set; }
+        public DbSet<Community> Communities { get; set; }
+        public DbSet<CommunityUser> CommunityUsers { get; set; }
+
         public DbSet<RevokedToken> RevokedTokens { get; set; }  // Добавляем DbSet для черных токенов
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BlogApi.Migrations
 {
     [DbContext(typeof(BlogDbContext))]
-    [Migration("20241201025345_subcomments3")]
-    partial class subcomments3
+    [Migration("20241201205953_tagsrem")]
+    partial class tagsrem
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -97,29 +97,19 @@ namespace BlogApi.Migrations
 
             modelBuilder.Entity("BlogApi.Models.Like", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("PostId1")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
 
-                    b.Property<Guid>("UserId1")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PostId1");
-
-                    b.HasIndex("UserId1");
+                    b.HasIndex("PostId");
 
                     b.ToTable("Likes");
                 });
@@ -135,7 +125,6 @@ namespace BlogApi.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Author")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("AuthorId")
@@ -213,7 +202,10 @@ namespace BlogApi.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<DateTime?>("DateOfBirth")
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreationTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
@@ -262,21 +254,11 @@ namespace BlogApi.Migrations
 
             modelBuilder.Entity("BlogApi.Models.Like", b =>
                 {
-                    b.HasOne("BlogApi.Models.Post", "Post")
+                    b.HasOne("BlogApi.Models.Post", null)
                         .WithMany("Likes")
-                        .HasForeignKey("PostId1")
+                        .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("BlogApi.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BlogApi.Models.Tag", b =>

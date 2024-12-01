@@ -122,7 +122,6 @@ namespace BlogApi.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Author")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("AuthorId")

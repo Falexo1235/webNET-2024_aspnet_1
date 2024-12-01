@@ -5,7 +5,7 @@
 namespace BlogApi.Migrations
 {
     /// <inheritdoc />
-    public partial class what3 : Migration
+    public partial class tags : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

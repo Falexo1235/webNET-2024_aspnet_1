@@ -98,6 +98,9 @@ private async Task<int> CountSubComments(Guid commentId)
             if (comment.AuthorId != userId)
                 return Unauthorized("You can only edit your own comments.");
 
+            if (comment.DeleteDate != null)
+                return BadRequest("Deleted comments cannot be edited.");
+
             comment.Content = dto.Content;
             comment.ModifiedDate = DateTime.UtcNow;
 
@@ -111,19 +114,41 @@ private async Task<int> CountSubComments(Guid commentId)
         [Authorize]
         public async Task<IActionResult> DeleteComment(Guid id)
         {
-            var comment = await _context.Comments.FindAsync(id);
+            var comment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
 
-            if (comment == null) return NotFound("Comment not found.");
+            if (comment == null)
+                return NotFound("Comment not found.");
 
             var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
 
-            // Проверка, что пользователь является автором комментария
+            // Проверка на принадлежность комментария текущему пользователю
             if (comment.AuthorId != userId)
                 return Unauthorized("You can only delete your own comments.");
 
+            if (comment.DeleteDate != null)
+                return BadRequest("Comment has already been deleted.");
+
+
+            // Устанавливаем дату удаления и очищаем текст комментария
             comment.DeleteDate = DateTime.UtcNow;
+            comment.Content = string.Empty;  // Очищаем текст комментария
+
+            // Проверяем, есть ли подкомментарии
+            var subCommentsCount = await CountSubComments(comment.Id);
+
+            if (subCommentsCount == 0)
+            {
+                // Если подкомментариев нет, удаляем комментарий полностью
+                _context.Comments.Remove(comment);
+            }
+            else
+            {
+                // Если есть подкомментарии, то оставляем его в базе
+                _context.Comments.Update(comment);
+            }
 
             await _context.SaveChangesAsync();
+
             return Ok(new { Message = "Comment deleted successfully." });
         }
 

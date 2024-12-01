@@ -5,14 +5,14 @@
 namespace BlogApi.Migrations
 {
     /// <inheritdoc />
-    public partial class subcomments3 : Migration
+    public partial class author : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(
                 name: "Author",
-                table: "Comments",
+                table: "Posts",
                 type: "text",
                 nullable: true,
                 oldClrType: typeof(string),
@@ -24,7 +24,7 @@ namespace BlogApi.Migrations
         {
             migrationBuilder.AlterColumn<string>(
                 name: "Author",
-                table: "Comments",
+                table: "Posts",
                 type: "text",
                 nullable: false,
                 defaultValue: "",

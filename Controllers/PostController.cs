@@ -24,6 +24,10 @@ namespace BlogApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
+            var userId = User.Identity.IsAuthenticated 
+                ? Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value) 
+                : Guid.Empty; // Получаем ID пользователя из claims (если он авторизован)
+
             var postsQuery = _context.Posts
                 .Include(p => p.Tags)
                 .Include(p => p.Comments)
@@ -35,17 +39,22 @@ namespace BlogApi.Controllers
                 .Take(pageSize)
                 .Select(p => new
                 {
-                    p.Id,
-                    p.CreateTime,
                     p.Title,
                     p.Description,
                     p.ReadingTime,
                     p.Image,
                     AuthorId = p.AuthorId,
+                    p.CommunityId,
+                    p.CommunityName,
                     p.AddressId,
-                    Likes = p.Likes.Count,
+                    Likes = _context.Likes.Count(l => l.PostId == p.Id),
+                    HasLike = userId != Guid.Empty 
+                        ? _context.Likes.Any(l => l.PostId == p.Id && l.UserId == userId) 
+                        : false,  // Проверка лайка только для авторизованных пользователей
                     CommentsCount = p.Comments.Count,  // Возвращаем количество комментариев
-                    Tags = p.Tags.Select(t => new { t.Id, t.Name, t.CreateTime }).ToList()
+                    Tags = p.Tags.Select(t => new { t.Id, t.Name, t.CreateTime }).ToList(),
+                    p.Id,
+                    p.CreateTime,
                 })
                 .ToListAsync();
 
@@ -64,7 +73,7 @@ namespace BlogApi.Controllers
 public async Task<IActionResult> GetPostById(Guid id)
 {
     var post = await _context.Posts
-        .Include(p => p.Comments)
+        .Include(p => p.Comments)  // Загружаем комментарии
         .FirstOrDefaultAsync(p => p.Id == id);
 
     if (post == null)
@@ -73,22 +82,54 @@ public async Task<IActionResult> GetPostById(Guid id)
     var postAuthor = await _context.Users.FindAsync(post.AuthorId);
     post.Author = postAuthor?.FullName ?? "Unknown";
 
-    // Фильтруем только основные комментарии
-    var mainComments = post.Comments.Where(c => c.ParentId == null).ToList();
-
-    foreach (var comment in mainComments)
+    // Для каждого комментария считаем количество подкомментариев
+    int totalCommentCount = 0;
+    foreach (var comment in post.Comments.Where(c => c.ParentId == null))
     {
         var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);
         comment.Author = commentAuthor?.FullName ?? "Unknown";
 
-        // Рекурсивный подсчёт подкомментариев
         comment.SubComments = await CountSubCommentsRecursively(comment.Id);
+
+        totalCommentCount += comment.SubComments + 1;
     }
+     bool hasLike = false;
+    if (User.Identity.IsAuthenticated)
+    {
+        var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+        hasLike = await _context.Likes.AnyAsync(l => l.PostId == post.Id && l.UserId == userId);
+    }
+    return Ok(new
+    {
+        Comments = post.Comments.Where(c => c.ParentId == null) // Только основные комментарии
+            .Select(c => new
+            {
+                c.Content,
+                c.ModifiedDate,
+                c.DeleteDate,
+                c.AuthorId,
+                c.Author,
+                c.SubComments,
+                c.Id,
+                c.CreateTime
 
-    post.Comments = mainComments; // Перезаписываем только основные комментарии
-    return Ok(post);
+            }),
+        post.Title,
+        post.Description,
+        post.ReadingTime,
+        post.Image,
+        post.AuthorId,
+        post.Author,
+        post.CommunityId,
+        post.CommunityName,
+        Likes = await _context.Likes.CountAsync(l => l.PostId == post.Id), // Количество лайков
+        HasLike = hasLike,
+        CommentsCount = totalCommentCount,
+        post.Tags,
+        post.Id,
+        post.CreateTime,
+    });
 }
-
 // Рекурсивный метод подсчёта подкомментариев
 private async Task<int> CountSubCommentsRecursively(Guid parentId)
 {
@@ -168,6 +209,49 @@ private async Task<int> CountSubCommentsRecursively(Guid parentId)
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Post created successfully." });
+        }
+
+        
+        [HttpPost("{postId}/like")]
+        [Authorize]
+        public async Task<IActionResult> AddLike(Guid postId)
+        {
+            var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+
+            // Проверка: пользователь уже лайкнул пост?
+            var existingLike = await _context.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+            if (existingLike != null)
+                return BadRequest("You have already liked this post.");
+
+            var like = new Like
+            {
+                PostId = postId,
+                UserId = userId
+            };
+
+            _context.Likes.Add(like);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Post liked successfully." });
+        }
+
+
+        // DELETE: /api/post/{postId}/like
+        [HttpDelete("{postId}/like")]
+        [Authorize]
+        public async Task<IActionResult> RemoveLike(Guid postId)
+        {
+            var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+
+            // Найти существующий лайк
+            var like = await _context.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+            if (like == null)
+                return NotFound("Like not found.");
+
+            _context.Likes.Remove(like);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Like removed successfully." });
         }
     }
 }
