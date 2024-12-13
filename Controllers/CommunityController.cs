@@ -14,9 +14,7 @@ namespace BlogApi.Controllers
     {
         private readonly BlogDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IServiceScopeFactory _serviceScopeFactory;  // Поле для IServiceScopeFactory
-
-        // Внедрение зависимостей через конструктор
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         public CommunityController(BlogDbContext context, IHttpContextAccessor httpContextAccessor, IServiceScopeFactory serviceScopeFactory)
         {
             _context = context;
@@ -97,37 +95,28 @@ namespace BlogApi.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? sorting = null,
-            [FromQuery] List<Guid>? tags = null) // Добавлен параметр для тегов
+            [FromQuery] List<Guid>? tags = null)
         {
-            // Базовый запрос для постов сообщества
             var postsQuery = _context.Posts
                 .Where(p => p.CommunityId == id)
-                .Include(p => p.PostTags)  // Включаем связь с PostTags
+                .Include(p => p.PostTags)
                 .Include(p => p.Comments)
                 .AsQueryable();
-
-            // Фильтрация по тегам: выбираем только те посты, у которых есть все теги из переданного списка
             if (tags != null && tags.Any())
             {
                 postsQuery = postsQuery.Where(p =>
                     tags.All(tagId => p.PostTags.Any(pt => pt.TagId == tagId)));
             }
-
-            // Сортировка
             postsQuery = sorting switch
             {
                 "CreateAsc" => postsQuery.OrderBy(p => p.CreateTime),
                 "CreateDesc" => postsQuery.OrderByDescending(p => p.CreateTime),
                 "LikesAsc" => postsQuery.OrderBy(p => _context.Likes.Count(l => l.PostId == p.Id)),
                 "LikesDesc" => postsQuery.OrderByDescending(p => _context.Likes.Count(l => l.PostId == p.Id)),
-                _ => postsQuery.OrderByDescending(p => p.CreateTime) // По умолчанию сортировка по убыванию даты создания
+                _ => postsQuery.OrderByDescending(p => p.CreateTime)
             };
-
-            // Подсчет общего количества постов для пагинации
             var totalPosts = await postsQuery.CountAsync();
             var totalPages = (int)Math.Ceiling(totalPosts / (double)pageSize);
-
-            // Получение постов для текущей страницы
             var posts = await postsQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -190,11 +179,7 @@ namespace BlogApi.Controllers
 
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
-
-            // Получаем теги из базы данных по переданным Id
             var tags = await _context.Tags.Where(t => dto.Tags.Contains(t.Id)).ToListAsync();
-
-            // Создаем связи между постом и тегами через таблицу PostTags
             var postTags = tags.Select(tag => new PostTag
             {
                 PostId = post.Id,
@@ -268,6 +253,8 @@ namespace BlogApi.Controllers
                 return NotFound("Community not found.");
             if (subscription == null)
                 return BadRequest("User is not subscribed to this community.");
+            if (subscription.Role == "Administrator")
+                return BadRequest("Administrators cannot unsubscribe from the community.");
             _context.CommunityUsers.Remove(subscription);
             await _context.SaveChangesAsync();
             return Ok($"You are now unsubscribed from \"{community.Name}\"");

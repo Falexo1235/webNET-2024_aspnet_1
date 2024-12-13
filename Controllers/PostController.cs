@@ -44,27 +44,19 @@ public async Task<IActionResult> GetPosts(
         postsQuery = postsQuery.Where(p =>
             tags.All(tagId => p.PostTags.Any(pt => pt.TagId == tagId)));
     }
-
-    // Фильтр по автору
     if (!string.IsNullOrEmpty(author))
     {
         postsQuery = postsQuery.Where(p =>
             _context.Users.Any(u => u.Id == p.AuthorId && EF.Functions.ILike(u.FullName, $"%{author}%")));
     }
-
-    // Фильтр по минимальному времени чтения
     if (min.HasValue)
     {
         postsQuery = postsQuery.Where(p => p.ReadingTime >= min.Value);
     }
-
-    // Фильтр по максимальному времени чтения
     if (max.HasValue)
     {
         postsQuery = postsQuery.Where(p => p.ReadingTime <= max.Value);
     }
-
-    // Фильтрация по сообществам (если только мои сообщества)
     if (onlyMyCommunities && userId != Guid.Empty)
     {
         var userCommunityIds = await _context.CommunityUsers
@@ -74,15 +66,11 @@ public async Task<IActionResult> GetPosts(
 
         postsQuery = postsQuery.Where(p => p.CommunityId.HasValue && userCommunityIds.Contains(p.CommunityId.Value));
     }
-
-    // Исключение закрытых сообществ, если пользователь не является их участником
     postsQuery = postsQuery.Where(p => 
         p.CommunityId == null || 
         !_context.Communities.Any(c => c.Id == p.CommunityId && c.IsClosed && ! 
             _context.CommunityUsers.Any(cu => cu.UserId == userId && cu.CommunityId == c.Id))
     );
-
-    // Сортировка
     postsQuery = sorting switch
     {
         "CreateAsc" => postsQuery.OrderBy(p => p.CreateTime),
