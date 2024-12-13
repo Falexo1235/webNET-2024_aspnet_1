@@ -4,6 +4,7 @@ namespace BlogApi.DTOs
 {
     public class UpdateProfileDto
     {
+        [MaxLength(70)]
         public string? FullName { get; set; }
         [Phone]
         public string? Phone { get; set; }

@@ -11,6 +11,7 @@ public class RegisterDto
     [Compare("Password", ErrorMessage = "Password and confirm password does not match")]
     public string ConfirmPassword { get; set; }
     [Required]
+    [MaxLength(70)]
     public string FullName { get; set; }
     public DateTime? BirthDate { get; set; }
     [Phone]
