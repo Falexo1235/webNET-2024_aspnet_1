@@ -16,65 +16,65 @@ namespace BlogApi.Controllers
         }
 
     [HttpGet("search")]
-public async Task<IActionResult> SearchAddress([FromQuery] long? objectid, [FromQuery] string? query)
-{
-    IQueryable<long> objectIdsQuery;
-    if (objectid.HasValue)
-    {
-        objectIdsQuery = _context.AdmHierarchies
-            .Where(h => h.parentobjid == objectid && h.isactive == 1)
-            .Select(h => h.objectid);
-    }
-    else
-    {
-        objectIdsQuery = _context.AdmHierarchies
-            .Where(h => h.parentobjid == 0 && h.isactive == 1)
-            .Select(h => h.objectid);
-    }
-    var objectIds = await objectIdsQuery.ToListAsync();
-    var addrQuery = _context.AddrObjs
-        .Where(a => objectIds.Contains(a.objectid) && a.isactive == 1)
-        .Select(a => new
+        public async Task<IActionResult> SearchAddress([FromQuery] long? objectid, [FromQuery] string? query)
         {
-            a.objectid,
-            a.objectguid,
-            text = a.typename + " " + a.name,
-            level = a.level
-        });
+            IQueryable<long> objectIdsQuery;
+            if (objectid.HasValue)
+            {
+                objectIdsQuery = _context.AdmHierarchies
+                    .Where(h => h.parentobjid == objectid && h.isactive == 1)
+                    .Select(h => h.objectid);
+            }
+            else
+            {
+                objectIdsQuery = _context.AdmHierarchies
+                    .Where(h => h.parentobjid == 0 && h.isactive == 1)
+                    .Select(h => h.objectid);
+            }
+            var objectIds = await objectIdsQuery.ToListAsync();
+            var addrQuery = _context.AddrObjs
+                .Where(a => objectIds.Contains(a.objectid) && a.isactive == 1)
+                .Select(a => new
+                {
+                    a.objectid,
+                    a.objectguid,
+                    text = a.typename + " " + a.name,
+                    level = a.level
+                });
 
-    var houseQuery = _context.Houses
-        .Where(h => objectIds.Contains(h.objectid) && h.isactive == 1)
-        .Select(h => new
-        {
-            h.objectid,
-            h.objectguid,
-            text = h.housenum,
-            level = "Здание (сооружение)"
-        });
-    var combinedQuery = addrQuery.Cast<object>().Concat(houseQuery.Cast<object>());
-    if (!string.IsNullOrEmpty(query))
-    {
-        combinedQuery = combinedQuery
-            .Where(item =>
-                EF.Functions.ILike(EF.Property<string>(item, "text"), $"%{query}%"));
-    }
-    var resultQuery = from item in combinedQuery
-                      join level in _context.ObjectLevels
-                      on EF.Property<string>(item, "level") equals level.level.ToString() into levels
-                      from level in levels.DefaultIfEmpty()
-                      select new
-                      {
-                          objectid = EF.Property<long>(item, "objectid"),
-                          objectguid = EF.Property<Guid>(item, "objectguid"),
-                          text = EF.Property<string>(item, "text"),
-                          objectlevel = level != null ? level.name : EF.Property<string>(item, "level")
-                      };
-    var result = await resultQuery
-                            .GroupBy(r => r.objectid)
-                            .Select(g => g.FirstOrDefault())
-                            .ToListAsync();
-    return Ok(result);
-}
+            var houseQuery = _context.Houses
+                .Where(h => objectIds.Contains(h.objectid) && h.isactive == 1)
+                .Select(h => new
+                {
+                    h.objectid,
+                    h.objectguid,
+                    text = h.housenum,
+                    level = "Здание (сооружение)"
+                });
+            var combinedQuery = addrQuery.Cast<object>().Concat(houseQuery.Cast<object>());
+            if (!string.IsNullOrEmpty(query))
+            {
+                combinedQuery = combinedQuery
+                    .Where(item =>
+                        EF.Functions.ILike(EF.Property<string>(item, "text"), $"%{query}%"));
+            }
+            var resultQuery = from item in combinedQuery
+                            join level in _context.ObjectLevels
+                            on EF.Property<string>(item, "level") equals level.level.ToString() into levels
+                            from level in levels.DefaultIfEmpty()
+                            select new
+                            {
+                                objectid = EF.Property<long>(item, "objectid"),
+                                objectguid = EF.Property<Guid>(item, "objectguid"),
+                                text = EF.Property<string>(item, "text"),
+                                objectlevel = level != null ? level.name : EF.Property<string>(item, "level")
+                            };
+            var result = await resultQuery
+                                    .GroupBy(r => r.objectid)
+                                    .Select(g => g.FirstOrDefault())
+                                    .ToListAsync();
+            return Ok(result);
+        }
         [HttpGet("chain")]
         public async Task<IActionResult> GetAddressChain([FromQuery] Guid objectguid)
         {

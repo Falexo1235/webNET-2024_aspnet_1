@@ -20,57 +20,57 @@ namespace BlogApi.Controllers
         }
 
         [HttpGet("{id}/tree")]
-public async Task<IActionResult> GetCommentTree(Guid id)
-{
-    var parentComment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
-    if (parentComment == null)
-        return NotFound("Comment not found.");
+        public async Task<IActionResult> GetCommentTree(Guid id)
+        {
+            var parentComment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
+            if (parentComment == null)
+                return NotFound("Comment not found.");
 
-    var commentTree = new List<object>();
-    await BuildCommentTree(parentComment, commentTree);
+            var commentTree = new List<object>();
+            await BuildCommentTree(parentComment, commentTree);
 
-    return Ok(commentTree);
-}
+            return Ok(commentTree);
+        }
 
-private async Task BuildCommentTree(Comment comment, List<object> result)
-{
-    var author = await _context.Users.FindAsync(comment.AuthorId);
-    result.Add(new
-    {
-        comment.Content,
-        comment.ModifiedDate,
-        comment.DeleteDate,
-        comment.AuthorId,
-        Author = author?.FullName ?? "Unknown",
-        SubComments = await CountSubComments(comment.Id),
-        comment.Id,
-        comment.CreateTime
-    });
-    var subComments = await _context.Comments
-        .Where(c => c.ParentId == comment.Id)
-        .OrderByDescending(c => c.CreateTime)
-        .ToListAsync();
+        private async Task BuildCommentTree(Comment comment, List<object> result)
+        {
+            var author = await _context.Users.FindAsync(comment.AuthorId);
+            result.Add(new
+            {
+                comment.Content,
+                comment.ModifiedDate,
+                comment.DeleteDate,
+                comment.AuthorId,
+                Author = author?.FullName ?? "Unknown",
+                SubComments = await CountSubComments(comment.Id),
+                comment.Id,
+                comment.CreateTime
+            });
+            var subComments = await _context.Comments
+                .Where(c => c.ParentId == comment.Id)
+                .OrderByDescending(c => c.CreateTime)
+                .ToListAsync();
 
-    foreach (var subComment in subComments)
-    {
-        await BuildCommentTree(subComment, result);
-    }
-}
-private async Task<int> CountSubComments(Guid commentId)
-{
-    var subComments = await _context.Comments
-        .Where(c => c.ParentId == commentId)
-        .ToListAsync();
+            foreach (var subComment in subComments)
+            {
+                await BuildCommentTree(subComment, result);
+            }
+        }
+        private async Task<int> CountSubComments(Guid commentId)
+        {
+            var subComments = await _context.Comments
+                .Where(c => c.ParentId == commentId)
+                .ToListAsync();
 
-    int count = subComments.Count;
+            int count = subComments.Count;
 
-    foreach (var subComment in subComments)
-    {
-        count += await CountSubComments(subComment.Id); 
-    }
+            foreach (var subComment in subComments)
+            {
+                count += await CountSubComments(subComment.Id); 
+            }
 
-    return count;
-}
+            return count;
+        }
 
         [HttpPut("{id}")]
         [Authorize]
