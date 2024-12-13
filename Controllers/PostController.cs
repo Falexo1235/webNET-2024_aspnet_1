@@ -18,50 +18,114 @@ namespace BlogApi.Controllers
         {
             _context = context;
         }
-        [HttpGet]
-        public async Task<IActionResult> GetPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetPosts(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? author = null,
+    [FromQuery] int? min = null,
+    [FromQuery] int? max = null,
+    [FromQuery] bool onlyMyCommunities = false,
+    [FromQuery] string? sorting = null,
+    [FromQuery] List<Guid>? tags = null) // Добавили массив тегов
+{
+    // Получение идентификатора пользователя
+    var userId = User.Identity.IsAuthenticated
+        ? Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value)
+        : Guid.Empty;
+
+    // Базовый запрос для постов
+    var postsQuery = _context.Posts
+        .Include(p => p.Tags)
+        .Include(p => p.Comments)
+        .AsQueryable();
+
+    // Фильтр по имени автора
+    if (!string.IsNullOrEmpty(author))
+    {
+        postsQuery = postsQuery.Where(p =>
+            _context.Users.Any(u => u.Id == p.AuthorId && EF.Functions.ILike(u.FullName, $"%{author}%")));
+    }
+
+    // Фильтр по минимальному времени чтения
+    if (min.HasValue)
+    {
+        postsQuery = postsQuery.Where(p => p.ReadingTime >= min.Value);
+    }
+
+    // Фильтр по максимальному времени чтения
+    if (max.HasValue)
+    {
+        postsQuery = postsQuery.Where(p => p.ReadingTime <= max.Value);
+    }
+
+    // Фильтр по тегам
+    if (tags != null && tags.Any())
+    {
+        postsQuery = postsQuery.Where(p => 
+            tags.All(tagId => p.Tags.Any(t => t.Id == tagId)));
+    }
+
+    // Фильтр по сообществам пользователя
+    if (onlyMyCommunities && userId != Guid.Empty)
+    {
+        var userCommunityIds = await _context.CommunityUsers
+            .Where(cu => cu.UserId == userId)
+            .Select(cu => cu.CommunityId)
+            .ToListAsync();
+
+        postsQuery = postsQuery.Where(p => p.CommunityId.HasValue && userCommunityIds.Contains(p.CommunityId.Value));
+    }
+
+    // Сортировка
+    postsQuery = sorting switch
+    {
+        "CreateAsc" => postsQuery.OrderBy(p => p.CreateTime),
+        "CreateDesc" => postsQuery.OrderByDescending(p => p.CreateTime),
+        "LikesAsc" => postsQuery.OrderBy(p => _context.Likes.Count(l => l.PostId == p.Id)),
+        "LikesDesc" => postsQuery.OrderByDescending(p => _context.Likes.Count(l => l.PostId == p.Id)),
+        _ => postsQuery.OrderByDescending(p => p.CreateTime) // По умолчанию сортировка по убыванию даты создания
+    };
+
+    // Подсчет общего количества постов для пагинации
+    var totalPosts = await postsQuery.CountAsync();
+    var totalPages = (int)Math.Ceiling(totalPosts / (double)pageSize);
+
+    // Получение постов для текущей страницы
+    var posts = await postsQuery
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(p => new
         {
-            var userId = User.Identity.IsAuthenticated 
-                ? Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value) 
-                : Guid.Empty;
-            var postsQuery = _context.Posts
-                .Include(p => p.Tags)
-                .Include(p => p.Comments)
-                .AsQueryable();
-            var totalPosts = await postsQuery.CountAsync();
-            var posts = await postsQuery
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(p => new
-                {
-                    p.Title,
-                    p.Description,
-                    p.ReadingTime,
-                    p.Image,
-                    AuthorId = p.AuthorId,
-                    p.CommunityId,
-                    p.CommunityName,
-                    p.AddressId,
-                    Likes = _context.Likes.Count(l => l.PostId == p.Id),
-                    HasLike = userId != Guid.Empty 
-                        ? _context.Likes.Any(l => l.PostId == p.Id && l.UserId == userId) 
-                        : false,
-                    CommentsCount = p.Comments.Count,
-                    Tags = p.Tags.Select(t => new { t.Id, t.Name, t.CreateTime }).ToList(),
-                    p.Id,
-                    p.CreateTime,
-                })
-                .ToListAsync();
+            p.Title,
+            p.Description,
+            p.ReadingTime,
+            p.Image,
+            AuthorId = p.AuthorId,
+            Author = _context.Users.FirstOrDefault(u => u.Id == p.AuthorId).FullName,
+            p.CommunityId,
+            p.CommunityName,
+            p.AddressId,
+            Likes = _context.Likes.Count(l => l.PostId == p.Id),
+            HasLike = userId != Guid.Empty
+                ? _context.Likes.Any(l => l.PostId == p.Id && l.UserId == userId)
+                : false,
+            CommentsCount = p.Comments.Count,
+            Tags = p.Tags.Select(t => new { t.Id, t.Name, t.CreateTime }).ToList(),
+            p.Id,
+            p.CreateTime,
+        })
+        .ToListAsync();
 
-            var pagination = new
-            {
-                Size = pageSize,
-                Count = totalPosts,
-                Current = page
-            };
+    var pagination = new
+    {
+        Size = pageSize,
+        Count = totalPages,
+        Current = page
+    };
 
-            return Ok(new { Posts = posts, Pagination = pagination });
-        }
+    return Ok(new { Posts = posts, Pagination = pagination });
+}
+
         [HttpGet("{id}")]
 public async Task<IActionResult> GetPostById(Guid id)
 {

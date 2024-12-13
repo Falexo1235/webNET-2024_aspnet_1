@@ -6,9 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using BlogApi.Services;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace BlogApi.Controllers
 {
     [Route("api/community")]
@@ -192,13 +189,13 @@ namespace BlogApi.Controllers
         public async Task<IActionResult> Subscribe(Guid id)
         {
             var userId = Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
-
             var existingSubscription = await _context.CommunityUsers
                 .FirstOrDefaultAsync(cu => cu.UserId == userId && cu.CommunityId == id);
-
             if (existingSubscription != null)
                 return BadRequest("User is already subscribed.");
-
+            var community = await _context.Communities.FirstOrDefaultAsync(c => c.Id == id);
+            if (community == null)
+                return NotFound("Community not found.");
             var communityUser = new CommunityUser
             {
                 UserId = userId,
@@ -209,7 +206,7 @@ namespace BlogApi.Controllers
             _context.CommunityUsers.Add(communityUser);
             await _context.SaveChangesAsync();
 
-            return Ok();
+            return Ok($"You are now subscribed to \"{community.Name}\"");
         }
 
         [HttpDelete("{id}/unsubscribe")]
@@ -217,17 +214,16 @@ namespace BlogApi.Controllers
         public async Task<IActionResult> Unsubscribe(Guid id)
         {
             var userId = Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
-
             var subscription = await _context.CommunityUsers
                 .FirstOrDefaultAsync(cu => cu.UserId == userId && cu.CommunityId == id);
-
+            var community = await _context.Communities.FirstOrDefaultAsync(c => c.Id == id);
+            if (community == null)
+                return NotFound("Community not found.");
             if (subscription == null)
                 return BadRequest("User is not subscribed to this community.");
-
             _context.CommunityUsers.Remove(subscription);
             await _context.SaveChangesAsync();
-
-            return Ok();
+            return Ok($"You are now unsubscribed from \"{community.Name}\"");
         }
     }
 }
