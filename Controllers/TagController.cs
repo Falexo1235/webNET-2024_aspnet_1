@@ -13,14 +13,12 @@ namespace BlogApi.Controllers
         {
             _context = context;
         }
-
         [HttpGet]
         public async Task<IActionResult> GetTags()
         {
-            // Извлекаем все теги, используя правильную модель
             var tags = await _context.Tags
-                .Include(t => t.PostTags)  // Включаем связанные записи в PostTags
-                .ThenInclude(pt => pt.Post)  // Включаем связанные записи Post (если нужно)
+                .Include(t => t.PostTags)
+                .ThenInclude(pt => pt.Post)
                 .ToListAsync();
 
             return Ok(tags);

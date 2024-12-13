@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace BlogApi.Controllers
 {
@@ -30,32 +29,42 @@ public async Task<IActionResult> GetPosts(
     [FromQuery] string? sorting = null,
     [FromQuery] List<Guid>? tags = null)
 {
-        var userId = User.Identity.IsAuthenticated
+    var userId = User.Identity.IsAuthenticated
         ? Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value)
         : Guid.Empty;
+
     var postsQuery = _context.Posts
         .Include(p => p.PostTags)
         .Include(p => p.Comments)
         .AsQueryable();
 
+    // Фильтр по тегам
     if (tags != null && tags.Any())
     {
         postsQuery = postsQuery.Where(p =>
             tags.All(tagId => p.PostTags.Any(pt => pt.TagId == tagId)));
     }
+
+    // Фильтр по автору
     if (!string.IsNullOrEmpty(author))
     {
         postsQuery = postsQuery.Where(p =>
             _context.Users.Any(u => u.Id == p.AuthorId && EF.Functions.ILike(u.FullName, $"%{author}%")));
     }
+
+    // Фильтр по минимальному времени чтения
     if (min.HasValue)
     {
         postsQuery = postsQuery.Where(p => p.ReadingTime >= min.Value);
     }
+
+    // Фильтр по максимальному времени чтения
     if (max.HasValue)
     {
         postsQuery = postsQuery.Where(p => p.ReadingTime <= max.Value);
     }
+
+    // Фильтрация по сообществам (если только мои сообщества)
     if (onlyMyCommunities && userId != Guid.Empty)
     {
         var userCommunityIds = await _context.CommunityUsers
@@ -65,6 +74,15 @@ public async Task<IActionResult> GetPosts(
 
         postsQuery = postsQuery.Where(p => p.CommunityId.HasValue && userCommunityIds.Contains(p.CommunityId.Value));
     }
+
+    // Исключение закрытых сообществ, если пользователь не является их участником
+    postsQuery = postsQuery.Where(p => 
+        p.CommunityId == null || 
+        !_context.Communities.Any(c => c.Id == p.CommunityId && c.IsClosed && ! 
+            _context.CommunityUsers.Any(cu => cu.UserId == userId && cu.CommunityId == c.Id))
+    );
+
+    // Сортировка
     postsQuery = sorting switch
     {
         "CreateAsc" => postsQuery.OrderBy(p => p.CreateTime),
@@ -73,8 +91,10 @@ public async Task<IActionResult> GetPosts(
         "LikesDesc" => postsQuery.OrderByDescending(p => _context.Likes.Count(l => l.PostId == p.Id)),
         _ => postsQuery.OrderByDescending(p => p.CreateTime)
     };
+
     var totalPosts = await postsQuery.CountAsync();
     var totalPages = (int)Math.Ceiling(totalPosts / (double)pageSize);
+
     var posts = await postsQuery
         .Skip((page - 1) * pageSize)
         .Take(pageSize)
@@ -94,93 +114,97 @@ public async Task<IActionResult> GetPosts(
                 ? _context.Likes.Any(l => l.PostId == p.Id && l.UserId == userId)
                 : false,
             CommentsCount = p.Comments.Count,
-            Tags = p.PostTags.Select(pt => new { pt.Tag.Id, pt.Tag.Name, pt.Tag.CreateTime }).ToList(),  // Получаем теги через PostTags
+            Tags = p.PostTags.Select(pt => new { pt.Tag.Id, pt.Tag.Name, pt.Tag.CreateTime }).ToList(),
             p.Id,
             p.CreateTime,
         })
         .ToListAsync();
+
     var pagination = new
     {
         Size = pageSize,
         Count = totalPages,
         Current = page
     };
+
     return Ok(new { Posts = posts, Pagination = pagination });
 }
 
 
 
+
+
         [HttpGet("{id}")]
-public async Task<IActionResult> GetPostById(Guid id)
-{
-    var post = await _context.Posts
-        .Include(p => p.Comments)
-        .FirstOrDefaultAsync(p => p.Id == id);
-    if (post == null)
-        return NotFound("Post not found.");
-    var postAuthor = await _context.Users.FindAsync(post.AuthorId);
-    post.Author = postAuthor?.FullName ?? "Unknown";
-    int totalCommentCount = 0;
-    foreach (var comment in post.Comments.Where(c => c.ParentId == null))
-    {
-        var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);
-        comment.Author = commentAuthor?.FullName ?? "Unknown";
-        comment.SubComments = await CountSubCommentsRecursively(comment.Id);
-        totalCommentCount += comment.SubComments + 1;
-    }
-     bool hasLike = false;
-    if (User.Identity.IsAuthenticated)
-    {
-        var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
-        hasLike = await _context.Likes.AnyAsync(l => l.PostId == post.Id && l.UserId == userId);
-    }
-    return Ok(new
-    {
-        Comments = post.Comments.Where(c => c.ParentId == null)
-            .Select(c => new
+        public async Task<IActionResult> GetPostById(Guid id)
+        {
+            var post = await _context.Posts
+                .Include(p => p.Comments)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (post == null)
+                return NotFound("Post not found.");
+            var postAuthor = await _context.Users.FindAsync(post.AuthorId);
+            post.Author = postAuthor?.FullName ?? "Unknown";
+            int totalCommentCount = 0;
+            foreach (var comment in post.Comments.Where(c => c.ParentId == null))
             {
-                c.Content,
-                c.ModifiedDate,
-                c.DeleteDate,
-                c.AuthorId,
-                c.Author,
-                c.SubComments,
-                c.Id,
-                c.CreateTime
-            }),
-        post.Title,
-        post.Description,
-        post.ReadingTime,
-        post.Image,
-        post.AuthorId,
-        post.Author,
-        post.CommunityId,
-        post.CommunityName,
-        Likes = await _context.Likes.CountAsync(l => l.PostId == post.Id),
-        HasLike = hasLike,
-        CommentsCount = totalCommentCount,
-        post.Tags,
-        post.Id,
-        post.CreateTime,
-    });
-}
-private async Task<int> CountSubCommentsRecursively(Guid parentId)
-{
-    var directSubComments = await _context.Comments
-        .Where(c => c.ParentId == parentId)
-        .ToListAsync();
+                var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);
+                comment.Author = commentAuthor?.FullName ?? "Unknown";
+                comment.SubComments = await CountSubCommentsRecursively(comment.Id);
+                totalCommentCount += comment.SubComments + 1;
+            }
+            bool hasLike = false;
+            if (User.Identity.IsAuthenticated)
+            {
+                var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+                hasLike = await _context.Likes.AnyAsync(l => l.PostId == post.Id && l.UserId == userId);
+            }
+            return Ok(new
+            {
+                Comments = post.Comments.Where(c => c.ParentId == null)
+                    .Select(c => new
+                    {
+                        c.Content,
+                        c.ModifiedDate,
+                        c.DeleteDate,
+                        c.AuthorId,
+                        c.Author,
+                        c.SubComments,
+                        c.Id,
+                        c.CreateTime
+                    }),
+                post.Title,
+                post.Description,
+                post.ReadingTime,
+                post.Image,
+                post.AuthorId,
+                post.Author,
+                post.CommunityId,
+                post.CommunityName,
+                Likes = await _context.Likes.CountAsync(l => l.PostId == post.Id),
+                HasLike = hasLike,
+                CommentsCount = totalCommentCount,
+                post.Tags,
+                post.Id,
+                post.CreateTime,
+            });
+        }
+        private async Task<int> CountSubCommentsRecursively(Guid parentId)
+        {
+            var directSubComments = await _context.Comments
+                .Where(c => c.ParentId == parentId)
+                .ToListAsync();
 
-    var totalCount = directSubComments.Count;
+            var totalCount = directSubComments.Count;
 
-    foreach (var subComment in directSubComments)
-    {
-        totalCount += await CountSubCommentsRecursively(subComment.Id);
-    }
+            foreach (var subComment in directSubComments)
+            {
+                totalCount += await CountSubCommentsRecursively(subComment.Id);
+            }
 
-    return totalCount;
-}
+            return totalCount;
+        }
 
-[HttpPost("{id}/comment")]
+        [HttpPost("{id}/comment")]
         [Authorize]
         public async Task<IActionResult> AddComment(Guid id, [FromBody] CommentDto dto)
         {
