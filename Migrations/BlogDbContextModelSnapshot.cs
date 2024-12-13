@@ -61,7 +61,7 @@ namespace BlogApi.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("Comments");
+                    b.ToTable("Comments", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Community", b =>
@@ -88,7 +88,7 @@ namespace BlogApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Communities");
+                    b.ToTable("Communities", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.CommunityUser", b =>
@@ -107,7 +107,7 @@ namespace BlogApi.Migrations
 
                     b.HasIndex("CommunityId");
 
-                    b.ToTable("CommunityUsers");
+                    b.ToTable("CommunityUsers", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Group", b =>
@@ -135,7 +135,7 @@ namespace BlogApi.Migrations
 
                     b.HasIndex("AdminId1");
 
-                    b.ToTable("Groups");
+                    b.ToTable("Groups", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Like", b =>
@@ -154,7 +154,7 @@ namespace BlogApi.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("Likes");
+                    b.ToTable("Likes", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Post", b =>
@@ -200,7 +200,7 @@ namespace BlogApi.Migrations
 
                     b.HasIndex("CommunityId");
 
-                    b.ToTable("Posts");
+                    b.ToTable("Posts", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.RevokedToken", b =>
@@ -220,7 +220,7 @@ namespace BlogApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RevokedTokens");
+                    b.ToTable("RevokedTokens", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Tag", b =>
@@ -243,7 +243,7 @@ namespace BlogApi.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("Tags");
+                    b.ToTable("Tags", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.User", b =>
@@ -280,7 +280,7 @@ namespace BlogApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Comment", b =>

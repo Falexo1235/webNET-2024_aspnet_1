@@ -19,6 +19,8 @@ namespace BlogApi.Data
         public DbSet<House> Houses { get; set; }
         public DbSet<ObjectLevel> ObjectLevels { get; set; }
         public DbSet<RevokedToken> RevokedTokens { get; set; }
+        public DbSet<PostTag> PostTags { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -36,6 +38,8 @@ namespace BlogApi.Data
                 .HasDefaultValueSql("gen_random_uuid()");
              modelBuilder.Entity<CommunityUser>()
                 .HasKey(cu => new { cu.UserId, cu.CommunityId });
+            modelBuilder.Entity<PostTag>()
+                .HasKey(pt => new { pt.PostId, pt.TagId });
             modelBuilder.Entity<AddrObj>().ToTable("as_addr_obj");
             modelBuilder.Entity<AdmHierarchy>().ToTable("as_adm_hierarchy");
             modelBuilder.Entity<House>().ToTable("as_houses");

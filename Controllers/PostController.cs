@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace BlogApi.Controllers
 {
@@ -18,7 +19,8 @@ namespace BlogApi.Controllers
         {
             _context = context;
         }
-        public async Task<IActionResult> GetPosts(
+        [HttpGet]
+public async Task<IActionResult> GetPosts(
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 10,
     [FromQuery] string? author = null,
@@ -26,46 +28,34 @@ namespace BlogApi.Controllers
     [FromQuery] int? max = null,
     [FromQuery] bool onlyMyCommunities = false,
     [FromQuery] string? sorting = null,
-    [FromQuery] List<Guid>? tags = null) // Добавили массив тегов
+    [FromQuery] List<Guid>? tags = null)
 {
-    // Получение идентификатора пользователя
-    var userId = User.Identity.IsAuthenticated
+        var userId = User.Identity.IsAuthenticated
         ? Guid.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value)
         : Guid.Empty;
-
-    // Базовый запрос для постов
     var postsQuery = _context.Posts
-        .Include(p => p.Tags)
+        .Include(p => p.PostTags)
         .Include(p => p.Comments)
         .AsQueryable();
 
-    // Фильтр по имени автора
+    if (tags != null && tags.Any())
+    {
+        postsQuery = postsQuery.Where(p =>
+            tags.All(tagId => p.PostTags.Any(pt => pt.TagId == tagId)));
+    }
     if (!string.IsNullOrEmpty(author))
     {
         postsQuery = postsQuery.Where(p =>
             _context.Users.Any(u => u.Id == p.AuthorId && EF.Functions.ILike(u.FullName, $"%{author}%")));
     }
-
-    // Фильтр по минимальному времени чтения
     if (min.HasValue)
     {
         postsQuery = postsQuery.Where(p => p.ReadingTime >= min.Value);
     }
-
-    // Фильтр по максимальному времени чтения
     if (max.HasValue)
     {
         postsQuery = postsQuery.Where(p => p.ReadingTime <= max.Value);
     }
-
-    // Фильтр по тегам
-    if (tags != null && tags.Any())
-    {
-        postsQuery = postsQuery.Where(p => 
-            tags.All(tagId => p.Tags.Any(t => t.Id == tagId)));
-    }
-
-    // Фильтр по сообществам пользователя
     if (onlyMyCommunities && userId != Guid.Empty)
     {
         var userCommunityIds = await _context.CommunityUsers
@@ -75,22 +65,16 @@ namespace BlogApi.Controllers
 
         postsQuery = postsQuery.Where(p => p.CommunityId.HasValue && userCommunityIds.Contains(p.CommunityId.Value));
     }
-
-    // Сортировка
     postsQuery = sorting switch
     {
         "CreateAsc" => postsQuery.OrderBy(p => p.CreateTime),
         "CreateDesc" => postsQuery.OrderByDescending(p => p.CreateTime),
         "LikesAsc" => postsQuery.OrderBy(p => _context.Likes.Count(l => l.PostId == p.Id)),
         "LikesDesc" => postsQuery.OrderByDescending(p => _context.Likes.Count(l => l.PostId == p.Id)),
-        _ => postsQuery.OrderByDescending(p => p.CreateTime) // По умолчанию сортировка по убыванию даты создания
+        _ => postsQuery.OrderByDescending(p => p.CreateTime)
     };
-
-    // Подсчет общего количества постов для пагинации
     var totalPosts = await postsQuery.CountAsync();
     var totalPages = (int)Math.Ceiling(totalPosts / (double)pageSize);
-
-    // Получение постов для текущей страницы
     var posts = await postsQuery
         .Skip((page - 1) * pageSize)
         .Take(pageSize)
@@ -110,21 +94,21 @@ namespace BlogApi.Controllers
                 ? _context.Likes.Any(l => l.PostId == p.Id && l.UserId == userId)
                 : false,
             CommentsCount = p.Comments.Count,
-            Tags = p.Tags.Select(t => new { t.Id, t.Name, t.CreateTime }).ToList(),
+            Tags = p.PostTags.Select(pt => new { pt.Tag.Id, pt.Tag.Name, pt.Tag.CreateTime }).ToList(),  // Получаем теги через PostTags
             p.Id,
             p.CreateTime,
         })
         .ToListAsync();
-
     var pagination = new
     {
         Size = pageSize,
         Count = totalPages,
         Current = page
     };
-
     return Ok(new { Posts = posts, Pagination = pagination });
 }
+
+
 
         [HttpGet("{id}")]
 public async Task<IActionResult> GetPostById(Guid id)
@@ -132,10 +116,8 @@ public async Task<IActionResult> GetPostById(Guid id)
     var post = await _context.Posts
         .Include(p => p.Comments)
         .FirstOrDefaultAsync(p => p.Id == id);
-
     if (post == null)
         return NotFound("Post not found.");
-
     var postAuthor = await _context.Users.FindAsync(post.AuthorId);
     post.Author = postAuthor?.FullName ?? "Unknown";
     int totalCommentCount = 0;
@@ -143,9 +125,7 @@ public async Task<IActionResult> GetPostById(Guid id)
     {
         var commentAuthor = await _context.Users.FindAsync(comment.AuthorId);
         comment.Author = commentAuthor?.FullName ?? "Unknown";
-
         comment.SubComments = await CountSubCommentsRecursively(comment.Id);
-
         totalCommentCount += comment.SubComments + 1;
     }
      bool hasLike = false;
@@ -229,15 +209,11 @@ private async Task<int> CountSubCommentsRecursively(Guid parentId)
         {
             if (dto.Tags == null || !dto.Tags.Any())
                 return BadRequest("At least one tag must be specified.");
-
             if (!string.IsNullOrEmpty(dto.Image) && !Uri.IsWellFormedUriString(dto.Image, UriKind.Absolute))
                 return BadRequest("Invalid image URL.");
-
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var authorId))
                 return Unauthorized("Invalid token.");
-
             var post = new Post
             {
                 Id = Guid.NewGuid(),
@@ -245,16 +221,28 @@ private async Task<int> CountSubCommentsRecursively(Guid parentId)
                 Description = dto.Description,
                 ReadingTime = dto.ReadingTime,
                 Image = dto.Image,
-                AddressId = dto.AddressId,
-                Tags = await _context.Tags.Where(t => dto.Tags.Contains(t.Id)).ToListAsync(),
+                AddressId = dto.AddressId == Guid.Empty? null: dto.AddressId,
                 AuthorId = authorId,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                Tags = new List<Tag>()
             };
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
+            var tags = await _context.Tags.Where(t => dto.Tags.Contains(t.Id)).ToListAsync();
+            if (tags.Count != dto.Tags.Count)
+                return BadRequest("One or more tags are invalid.");
+            var postTags = tags.Select(tag => new PostTag
+            {
+                PostId = post.Id,
+                TagId = tag.Id
+            }).ToList();
+
+            _context.PostTags.AddRange(postTags);
+            await _context.SaveChangesAsync();
+
             return Ok(new { Message = "Post created successfully." });
         }
-        
+
         [HttpPost("{postId}/like")]
         [Authorize]
         public async Task<IActionResult> AddLike(Guid postId)

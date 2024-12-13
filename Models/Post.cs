@@ -16,9 +16,13 @@ namespace BlogApi.Models
         public Guid? CommunityId { get; set; }
         public string? CommunityName { get; set; }
         public Guid? AddressId { get; set; }
-        public List<Tag> Tags { get; set; }
+        [JsonIgnore]
+        public List<PostTag> PostTags { get; set; }
+        [JsonIgnore]
+        public List<Tag> Tags { get; set; } = new List<Tag>();
         public List<Like> Likes { get; set; }
         public Guid Id { get; set; }
         public DateTime CreateTime { get; set; }
+        
     }
 }

@@ -91,12 +91,46 @@ namespace BlogApi.Controllers
 
             return Ok(community);
         }
-
         [HttpGet("{id}/post")]
-        public async Task<IActionResult> GetCommunityPosts(Guid id)
+        public async Task<IActionResult> GetCommunityPosts(
+            Guid id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? sorting = null,
+            [FromQuery] List<Guid>? tags = null) // Добавлен параметр для тегов
         {
-            var posts = await _context.Posts
+            // Базовый запрос для постов сообщества
+            var postsQuery = _context.Posts
                 .Where(p => p.CommunityId == id)
+                .Include(p => p.PostTags)  // Включаем связь с PostTags
+                .Include(p => p.Comments)
+                .AsQueryable();
+
+            // Фильтрация по тегам: выбираем только те посты, у которых есть все теги из переданного списка
+            if (tags != null && tags.Any())
+            {
+                postsQuery = postsQuery.Where(p =>
+                    tags.All(tagId => p.PostTags.Any(pt => pt.TagId == tagId)));
+            }
+
+            // Сортировка
+            postsQuery = sorting switch
+            {
+                "CreateAsc" => postsQuery.OrderBy(p => p.CreateTime),
+                "CreateDesc" => postsQuery.OrderByDescending(p => p.CreateTime),
+                "LikesAsc" => postsQuery.OrderBy(p => _context.Likes.Count(l => l.PostId == p.Id)),
+                "LikesDesc" => postsQuery.OrderByDescending(p => _context.Likes.Count(l => l.PostId == p.Id)),
+                _ => postsQuery.OrderByDescending(p => p.CreateTime) // По умолчанию сортировка по убыванию даты создания
+            };
+
+            // Подсчет общего количества постов для пагинации
+            var totalPosts = await postsQuery.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalPosts / (double)pageSize);
+
+            // Получение постов для текущей страницы
+            var posts = await postsQuery
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(p => new
                 {
                     p.Id,
@@ -104,15 +138,23 @@ namespace BlogApi.Controllers
                     p.Description,
                     p.CreateTime,
                     p.CommunityName,
-                    p.Author,
-                    p.Comments,
-                    p.Tags,
-                    LikesCount = p.Likes.Count
+                    Author = _context.Users.FirstOrDefault(u => u.Id == p.AuthorId).FullName,
+                    CommentsCount = p.Comments.Count,
+                    Tags = p.PostTags.Select(pt => new { pt.Tag.Id, pt.Tag.Name, pt.Tag.CreateTime }).ToList(),
+                    LikesCount = _context.Likes.Count(l => l.PostId == p.Id)
                 })
                 .ToListAsync();
 
-            return Ok(posts);
+            var pagination = new
+            {
+                Size = pageSize,
+                Count = totalPages,
+                Current = page
+            };
+
+            return Ok(new { Posts = posts, Pagination = pagination });
         }
+
 
         [HttpPost("{id}/post")]
         [Authorize]
@@ -120,23 +162,18 @@ namespace BlogApi.Controllers
         {
             if (dto.Tags == null || !dto.Tags.Any())
                 return BadRequest("At least one tag must be specified.");
-
             if (!string.IsNullOrEmpty(dto.Image) && !Uri.IsWellFormedUriString(dto.Image, UriKind.Absolute))
             {
                 return BadRequest("Invalid image URL.");
             }
-
             var community = await _context.Communities
                 .FirstOrDefaultAsync(c => c.Id == id);
-
             if (community == null)
                 return NotFound("Community not found.");
-
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var authorId))
                 return Unauthorized("Invalid token.");
-
+            
             var post = new Post
             {
                 Id = Guid.NewGuid(),
@@ -144,8 +181,7 @@ namespace BlogApi.Controllers
                 Description = dto.Description,
                 ReadingTime = dto.ReadingTime,
                 Image = dto.Image,
-                AddressId = dto.AddressId,
-                Tags = await _context.Tags.Where(t => dto.Tags.Contains(t.Id)).ToListAsync(),
+                AddressId = dto.AddressId == Guid.Empty ? null : dto.AddressId,
                 AuthorId = authorId,
                 CommunityId = id,
                 CommunityName = community.Name,
@@ -155,16 +191,27 @@ namespace BlogApi.Controllers
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
 
-            // Фоновая задача отправки уведомлений
-            
+            // Получаем теги из базы данных по переданным Id
+            var tags = await _context.Tags.Where(t => dto.Tags.Contains(t.Id)).ToListAsync();
+
+            // Создаем связи между постом и тегами через таблицу PostTags
+            var postTags = tags.Select(tag => new PostTag
+            {
+                PostId = post.Id,
+                TagId = tag.Id
+            }).ToList();
+
+            _context.PostTags.AddRange(postTags);
+            await _context.SaveChangesAsync();
+
             Task.Run(async () =>
-                {
-                    // Фоновая задача для отправки уведомлений
-                    await SendPostNotificationsAsync(post);
-                });
+            {
+                await SendPostNotificationsAsync(post);
+            });
 
             return Ok(new { Message = "Post created successfully." });
         }
+
         private async Task SendPostNotificationsAsync(Post post){
             using (var scope = _serviceScopeFactory.CreateScope())
                         {
