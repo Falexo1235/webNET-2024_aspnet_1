@@ -12,11 +12,10 @@ public class RegisterDto
     public string ConfirmPassword { get; set; }
     [Required]
     public string FullName { get; set; }
-    public DateTime? BirthDate { get; set; }  // Необязательное
+    public DateTime? BirthDate { get; set; }
     [Phone]
-    public string? Phone { get; set; } // Поле для телефона
+    public string? Phone { get; set; }
     [Required]
     [RegularExpression("^(Male|Female)$", ErrorMessage = "Gender must be either 'Male' or 'Female'.")]
-    public string Gender { get; set; } // Поле для телефона
-
+    public string Gender { get; set; }
 }

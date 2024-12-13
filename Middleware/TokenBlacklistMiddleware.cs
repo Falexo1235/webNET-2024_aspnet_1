@@ -1,15 +1,12 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
-using System.Threading.Tasks;
-using BlogApi.Data;  // Для доступа к BlogDbContext
+using BlogApi.Data;
 
 namespace BlogApi.Middleware
 {
     public class TokenBlacklistMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IServiceScopeFactory _scopeFactory; // Для создания области
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public TokenBlacklistMiddleware(RequestDelegate next, IServiceScopeFactory scopeFactory)
         {
@@ -19,22 +16,18 @@ namespace BlogApi.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            // Получаем токен из заголовка Authorization
             var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "").Trim();
 
-            // Если токен отсутствует, пропускаем запрос
             if (string.IsNullOrEmpty(token))
             {
                 await _next(context);
                 return;
             }
 
-            // Создаем область для разрешения зависимостей (scoped)
             using (var scope = _scopeFactory.CreateScope())
             {
                 var _context = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
 
-                // Проверяем, есть ли токен в черном списке
                 var revokedToken = await _context.RevokedTokens
                     .FirstOrDefaultAsync(rt => rt.Token == token);
 
@@ -44,8 +37,6 @@ namespace BlogApi.Middleware
                     return;
                 }
             }
-
-            // Если токен не отозван, пропускаем запрос дальше
             await _next(context);
         }
     }

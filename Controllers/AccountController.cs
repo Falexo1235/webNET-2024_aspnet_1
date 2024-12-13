@@ -23,13 +23,10 @@ namespace BlogApi.Controllers
             _context = context;
             _configuration = configuration;
         }
-
-        // POST: /api/account/login
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 return Unauthorized("Неверный логин или пароль.");
 
@@ -42,10 +39,9 @@ namespace BlogApi.Controllers
         {
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
-
             var user = new User
             {
-                Id = Guid.NewGuid(),  // Генерация нового GUID
+                Id = Guid.NewGuid(), 
                 Email = dto.Email,
                 FullName = dto.FullName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
@@ -62,7 +58,6 @@ namespace BlogApi.Controllers
             return Ok(new { Token = token });
         }
 
-        // POST: /api/account/logout (выход из системы)
         [HttpPost("logout")]
         [Authorize]
         public async Task<IActionResult> Logout()
@@ -70,30 +65,22 @@ namespace BlogApi.Controllers
             var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "").Trim();  // Получаем токен из заголовка
             if (string.IsNullOrEmpty(token))
                 return BadRequest("Token is missing.");
-
             var tokenHandler = new JwtSecurityTokenHandler();
             var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
-
             if (jwtToken == null)
                 return Unauthorized("Invalid token.");
 
-            // Получаем дату истечения токена
             var expirationDate = jwtToken.ValidTo;
-
-            // Добавляем токен в черный список
             var revokedToken = new RevokedToken
             {
                 Token = token,
                 ExpirationDate = expirationDate
             };
-
             _context.RevokedTokens.Add(revokedToken);
             await _context.SaveChangesAsync();
-
             return Ok(new { Message = "Successfully logged out." });
         }
 
-        // GET: /api/account/profile (получение профиля пользователя)
         [HttpGet("profile")]
         [Authorize]
         public async Task<IActionResult> GetProfile()
@@ -105,8 +92,8 @@ namespace BlogApi.Controllers
 
             if (user == null)
                 return NotFound("User not found.");
-
             var userProfile = new
+
             {
                 user.FullName,
                 user.BirthDate,
@@ -116,11 +103,9 @@ namespace BlogApi.Controllers
                 user.Id,
                 user.CreationTime
             };
-
             return Ok(userProfile);
         }
 
-        // PUT: /api/account/profile (изменение данных пользователя)
         [HttpPut("profile")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
@@ -136,29 +121,22 @@ namespace BlogApi.Controllers
             if (user == null)
                 return NotFound("User not found.");
 
-            // Убедитесь, что дата рождения передается в UTC
             if (dto.BirthDate.HasValue && dto.BirthDate.Value.Kind == DateTimeKind.Unspecified)
             {
-                // Если дата имеет 'Unspecified' тип, установите UTC
                 dto.BirthDate = DateTime.SpecifyKind(dto.BirthDate.Value, DateTimeKind.Utc);
             }
-
-            // Обновление данных пользователя
             user.FullName = dto.FullName ?? user.FullName;
             user.Phone = dto.Phone ?? user.Phone;
             user.BirthDate = dto.BirthDate ?? user.BirthDate;
             user.Gender = dto.Gender ?? user.Gender;
-
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
-
             return Ok(new { Message = "Profile updated successfully." });
         }
         private string GenerateJwtToken(User user)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
@@ -169,7 +147,6 @@ namespace BlogApi.Controllers
                 },
                 expires: DateTime.UtcNow.AddDays(7),
                 signingCredentials: creds);
-
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }

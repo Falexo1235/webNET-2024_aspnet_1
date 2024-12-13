@@ -4,6 +4,6 @@ namespace BlogApi.DTOs
     {
         public Guid UserId { get; set; }
         public Guid CommunityId { get; set; }
-        public string Role { get; set; } // "Administrator" or "Subscriber"
+        public string Role { get; set; }
     }
 }

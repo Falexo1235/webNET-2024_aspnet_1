@@ -7,15 +7,14 @@ namespace BlogApi.Models
         public string Description { get; set; }
         public int ReadingTime { get; set; }
         public string? Image { get; set; }
-        public Guid AuthorId { get; set; }  // Используем Guid для связи с User
-        public string? Author { get; set; }  // Имя автора
+        public Guid AuthorId { get; set; }
+        public string? Author { get; set; }
         public Guid? CommunityId { get; set; }
         public string? CommunityName { get; set; }
         public Guid? AddressId { get; set; }
         public List<Tag> Tags { get; set; }
         public List<Like> Likes { get; set; }
-        public Guid Id { get; set; }  // Используем Guid вместо int
+        public Guid Id { get; set; }
         public DateTime CreateTime { get; set; }
-
     }
 }

@@ -1,13 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using BlogApi.Models;
-
-using BlogApi.Middleware;
-
 namespace BlogApi.Data
 {
     public class BlogDbContext : DbContext
     {
-        
         public BlogDbContext(DbContextOptions<BlogDbContext> options) : base(options) { }
 
         public DbSet<User> Users { get; set; }
@@ -18,16 +14,18 @@ namespace BlogApi.Data
         public DbSet<Like> Likes { get; set; }
         public DbSet<Community> Communities { get; set; }
         public DbSet<CommunityUser> CommunityUsers { get; set; }
-
-        public DbSet<RevokedToken> RevokedTokens { get; set; }  // Добавляем DbSet для черных токенов
+        public DbSet<AddrObj> AddrObjs { get; set; }
+        public DbSet<AdmHierarchy> AdmHierarchies { get; set; }
+        public DbSet<House> Houses { get; set; }
+        public DbSet<ObjectLevel> ObjectLevels { get; set; }
+        public DbSet<RevokedToken> RevokedTokens { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Для всех сущностей, которые используют UUID в качестве идентификатора, указываем default value через gen_random_uuid
             modelBuilder.Entity<Post>()
                 .Property(p => p.Id)
-                .HasDefaultValueSql("gen_random_uuid()");  // Указываем функцию для генерации UUID по умолчанию
+                .HasDefaultValueSql("gen_random_uuid()");
 
             modelBuilder.Entity<Comment>()
                 .Property(c => c.Id)
@@ -38,8 +36,13 @@ namespace BlogApi.Data
                 .HasDefaultValueSql("gen_random_uuid()");
              modelBuilder.Entity<CommunityUser>()
                 .HasKey(cu => new { cu.UserId, cu.CommunityId });
+            modelBuilder.Entity<AddrObj>().ToTable("as_addr_obj");
+            modelBuilder.Entity<AdmHierarchy>().ToTable("as_adm_hierarchy");
+            modelBuilder.Entity<House>().ToTable("as_houses");
+            
+            modelBuilder.Entity<ObjectLevel>().ToTable("as_object_levels");
+            modelBuilder.Entity<ObjectLevel>()
+                .HasKey(o => o.level);
         }
-
     }
-    
 }

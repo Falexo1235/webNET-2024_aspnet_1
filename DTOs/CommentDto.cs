@@ -4,9 +4,8 @@ namespace BlogApi.DTOs
 {
     public class CommentDto
     {
-        public Guid? ParentId { get; set; }  // Если комментарий является вложенным
+        public Guid? ParentId { get; set; }
         [Required]
         public string Content { get; set; }
-
     }
 }

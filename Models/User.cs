@@ -9,7 +9,7 @@ namespace BlogApi.Models
         public string? Phone { get; set; }
         public DateTime? BirthDate { get; set; }
         public string Gender { get; set; }
-        public Guid Id { get; set; }  // Используем Guid вместо int
+        public Guid Id { get; set; }
         public DateTime CreationTime { get; set; }
         
         [JsonIgnore]

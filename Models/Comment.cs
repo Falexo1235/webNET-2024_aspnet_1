@@ -6,23 +6,17 @@ namespace BlogApi.Models
     {
         public string Content { get; set; }
         public DateTime? ModifiedDate { get; set; }
-
         public DateTime? DeleteDate { get; set; }
-
-        public Guid AuthorId { get; set; }  // Используем Guid для связи с User
-
-        // Публичное свойство для извлечения имени автора
-        public string? Author { get; set; } // Можем сделать его вычисляемым через метод или загрузить при запросе
+        public Guid AuthorId { get; set; }
+        public string? Author { get; set; }
 
         [JsonIgnore]
-        public Guid PostId { get; set; }  // Используем Guid для связи с Post
+        public Guid PostId { get; set; }
 
         [JsonIgnore]
-        public Guid? ParentId { get; set; }  // Используем Guid для связи с родительским комментарием
-        public int SubComments { get; set; }  // Количество подкомментариев
-        public Guid Id { get; set; }  // Используем Guid вместо int
+        public Guid? ParentId { get; set; }
+        public int SubComments { get; set; }
+        public Guid Id { get; set; }
         public DateTime CreateTime { get; set; }
-
-
     }
 }

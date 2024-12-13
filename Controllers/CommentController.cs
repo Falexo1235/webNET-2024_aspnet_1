@@ -19,13 +19,10 @@ namespace BlogApi.Controllers
             _context = context;
         }
 
-        // GET: api/comment/{id}/tree - Дерево комментариев (включая подкомментарии)
         [HttpGet("{id}/tree")]
 public async Task<IActionResult> GetCommentTree(Guid id)
 {
-    // Получаем комментарий-родитель
     var parentComment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
-
     if (parentComment == null)
         return NotFound("Comment not found.");
 
@@ -35,13 +32,9 @@ public async Task<IActionResult> GetCommentTree(Guid id)
     return Ok(commentTree);
 }
 
-// Рекурсивный метод построения дерева комментариев
 private async Task BuildCommentTree(Comment comment, List<object> result)
 {
-    // Загружаем автора комментария
     var author = await _context.Users.FindAsync(comment.AuthorId);
-
-    // Добавляем комментарий в результат
     result.Add(new
     {
         comment.Content,
@@ -49,12 +42,10 @@ private async Task BuildCommentTree(Comment comment, List<object> result)
         comment.DeleteDate,
         comment.AuthorId,
         Author = author?.FullName ?? "Unknown",
-        SubComments = await CountSubComments(comment.Id), // Рекурсивный подсчёт вложенных комментариев
+        SubComments = await CountSubComments(comment.Id),
         comment.Id,
         comment.CreateTime
     });
-
-    // Получаем подкомментарии
     var subComments = await _context.Comments
         .Where(c => c.ParentId == comment.Id)
         .OrderByDescending(c => c.CreateTime)
@@ -75,26 +66,19 @@ private async Task<int> CountSubComments(Guid commentId)
 
     foreach (var subComment in subComments)
     {
-        count += await CountSubComments(subComment.Id); // Рекурсивно подсчитываем вложенные комментарии
+        count += await CountSubComments(subComment.Id); 
     }
 
     return count;
 }
 
-        
-
-        // PUT: api/comment/{id} - Изменение комментария
         [HttpPut("{id}")]
         [Authorize]
         public async Task<IActionResult> EditComment(Guid id, [FromBody] CommentDto dto)
         {
             var comment = await _context.Comments.FindAsync(id);
-
             if (comment == null) return NotFound("Comment not found.");
-
             var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
-
-            // Проверка, что пользователь является автором комментария
             if (comment.AuthorId != userId)
                 return Unauthorized("You can only edit your own comments.");
 
@@ -103,54 +87,38 @@ private async Task<int> CountSubComments(Guid commentId)
 
             comment.Content = dto.Content;
             comment.ModifiedDate = DateTime.UtcNow;
-
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Comment updated successfully." });
         }
 
-
-        // DELETE: api/comment/{id} - Удаление комментария
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<IActionResult> DeleteComment(Guid id)
         {
             var comment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
-
             if (comment == null)
                 return NotFound("Comment not found.");
 
             var userId = Guid.Parse(User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
-
-            // Проверка на принадлежность комментария текущему пользователю
             if (comment.AuthorId != userId)
                 return Unauthorized("You can only delete your own comments.");
 
             if (comment.DeleteDate != null)
                 return BadRequest("Comment has already been deleted.");
 
-
-            // Устанавливаем дату удаления и очищаем текст комментария
             comment.DeleteDate = DateTime.UtcNow;
-            comment.Content = string.Empty;  // Очищаем текст комментария
-
-            // Проверяем, есть ли подкомментарии
+            comment.Content = string.Empty;
             var subCommentsCount = await CountSubComments(comment.Id);
-
             if (subCommentsCount == 0)
             {
-                // Если подкомментариев нет, удаляем комментарий полностью
                 _context.Comments.Remove(comment);
             }
             else
             {
-                // Если есть подкомментарии, то оставляем его в базе
                 _context.Comments.Update(comment);
             }
-
             await _context.SaveChangesAsync();
-
             return Ok(new { Message = "Comment deleted successfully." });
         }
-
     }
 }
