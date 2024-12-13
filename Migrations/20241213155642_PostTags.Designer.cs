@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BlogApi.Migrations
 {
     [DbContext(typeof(BlogDbContext))]
-    [Migration("20241212224355_AddComUserKey")]
-    partial class AddComUserKey
+    [Migration("20241213155642_PostTags")]
+    partial class PostTags
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,124 @@ namespace BlogApi.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("BlogApi.Models.AddrObj", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<long?>("changeid")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("enddate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("isactive")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("isactual")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("level")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long?>("nextid")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("objectguid")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("objectid")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("opertypeid")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("previd")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("startdate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("typename")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("updatedate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("id");
+
+                    b.ToTable("as_addr_obj", (string)null);
+                });
+
+            modelBuilder.Entity("BlogApi.Models.AdmHierarchy", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<string>("areacode")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("changeid")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("citycode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("enddate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("isactive")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("nextid")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("objectid")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("parentobjid")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("path")
+                        .HasColumnType("text");
+
+                    b.Property<string>("placecode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("plancode")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("previd")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("regioncode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("startdate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("streetcode")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("updatedate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("id");
+
+                    b.ToTable("as_adm_hierarchy", (string)null);
+                });
 
             modelBuilder.Entity("BlogApi.Models.Comment", b =>
                 {
@@ -141,6 +259,70 @@ namespace BlogApi.Migrations
                     b.ToTable("Groups");
                 });
 
+            modelBuilder.Entity("BlogApi.Models.House", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<string>("addnum1")
+                        .HasColumnType("text");
+
+                    b.Property<string>("addnum2")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("addtype1")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("addtype2")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("changeid")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("enddate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("housenum")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("housetype")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("isactive")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("isactual")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("nextid")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("objectguid")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("objectid")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("opertypeid")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("previd")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("startdate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("updatedate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("id");
+
+                    b.ToTable("as_houses", (string)null);
+                });
+
             modelBuilder.Entity("BlogApi.Models.Like", b =>
                 {
                     b.Property<Guid>("Id")
@@ -158,6 +340,35 @@ namespace BlogApi.Migrations
                     b.HasIndex("PostId");
 
                     b.ToTable("Likes");
+                });
+
+            modelBuilder.Entity("BlogApi.Models.ObjectLevel", b =>
+                {
+                    b.Property<int>("level")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("level"));
+
+                    b.Property<DateTime>("enddate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("isactive")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("startdate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("updatedate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("level");
+
+                    b.ToTable("as_object_levels", (string)null);
                 });
 
             modelBuilder.Entity("BlogApi.Models.Post", b =>
@@ -192,18 +403,34 @@ namespace BlogApi.Migrations
                     b.Property<string>("Image")
                         .HasColumnType("text");
 
-                    b.Property<int>("ReadingTime")
+                    b.Property<int?>("ReadingTime")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CommunityId");
 
                     b.ToTable("Posts");
+                });
+
+            modelBuilder.Entity("BlogApi.Models.PostTag", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("PostId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("PostTags");
                 });
 
             modelBuilder.Entity("BlogApi.Models.RevokedToken", b =>
@@ -268,7 +495,8 @@ namespace BlogApi.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(70)
+                        .HasColumnType("character varying(70)");
 
                     b.Property<string>("Gender")
                         .IsRequired()
@@ -297,21 +525,11 @@ namespace BlogApi.Migrations
 
             modelBuilder.Entity("BlogApi.Models.CommunityUser", b =>
                 {
-                    b.HasOne("BlogApi.Models.Community", "Community")
+                    b.HasOne("BlogApi.Models.Community", null)
                         .WithMany("CommunityUsers")
                         .HasForeignKey("CommunityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("BlogApi.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Community");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BlogApi.Models.Group", b =>
@@ -341,6 +559,25 @@ namespace BlogApi.Migrations
                         .HasForeignKey("CommunityId");
                 });
 
+            modelBuilder.Entity("BlogApi.Models.PostTag", b =>
+                {
+                    b.HasOne("BlogApi.Models.Post", "Post")
+                        .WithMany("PostTags")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BlogApi.Models.Tag", "Tag")
+                        .WithMany("PostTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("BlogApi.Models.Tag", b =>
                 {
                     b.HasOne("BlogApi.Models.Post", null)
@@ -361,7 +598,14 @@ namespace BlogApi.Migrations
 
                     b.Navigation("Likes");
 
+                    b.Navigation("PostTags");
+
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("BlogApi.Models.Tag", b =>
+                {
+                    b.Navigation("PostTags");
                 });
 #pragma warning restore 612, 618
         }
